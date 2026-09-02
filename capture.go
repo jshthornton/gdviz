@@ -371,6 +371,8 @@ func globProject(project string, patterns []string) ([]string, error) {
 	seen := map[string]bool{}
 	var out []string
 	for _, p := range patterns {
+		// shell-habit negation: Go character classes negate with ^, not !
+		p = strings.ReplaceAll(p, "[!", "[^")
 		matches, err := filepath.Glob(filepath.Join(project, filepath.FromSlash(p)))
 		if err != nil {
 			return nil, fmt.Errorf("bad pattern %q: %w", p, err)
