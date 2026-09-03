@@ -30,12 +30,13 @@ type RenderConfig struct {
 }
 
 type Defaults struct {
-	Record    bool     `toml:"record"`
-	Threshold float64  `toml:"threshold"`
-	Args      []string `toml:"args"`
-	Env       []string `toml:"env"`
-	Timeout   int      `toml:"timeout"`
-	Parallel  int      `toml:"parallel"`
+	Record     bool     `toml:"record"`
+	Threshold  float64  `toml:"threshold"`
+	MaxChanged float64  `toml:"max_changed"`
+	Args       []string `toml:"args"`
+	Env        []string `toml:"env"`
+	Timeout    int      `toml:"timeout"`
+	Parallel   int      `toml:"parallel"`
 }
 
 type ShotConfig struct {
@@ -49,6 +50,7 @@ type ShotConfig struct {
 	Env       []string `toml:"env"`
 	Record    *bool    `toml:"record"`
 	Threshold *float64 `toml:"threshold"`
+	MaxChanged *float64 `toml:"max_changed"`
 	QuitAfter int      `toml:"quit_after"`
 	Timeout   int      `toml:"timeout"`
 	Serial    bool     `toml:"serial"`
@@ -63,6 +65,7 @@ type Job struct {
 	Height    int
 	Record    bool
 	Threshold float64
+	MaxChanged float64
 	Args      []string
 	Env       []string
 	QuitAfter int
@@ -77,7 +80,7 @@ func DefaultConfig() *Config {
 		BaselineDir:   "tests/visual/baselines",
 		OutputDir:     "tmp/gdviz",
 		Render:        RenderConfig{Width: 1280, Height: 720, FPS: 30, MaxFrames: 240},
-		Defaults:      Defaults{Record: true, Threshold: 0.1, Timeout: 600},
+		Defaults:      Defaults{Record: true, Threshold: 0.1, MaxChanged: 0.01, Timeout: 600},
 	}
 }
 
@@ -112,6 +115,9 @@ func (c *Config) validate() error {
 	}
 	if c.Defaults.Threshold <= 0 || c.Defaults.Threshold > 1 {
 		c.Defaults.Threshold = 0.1
+	}
+	if c.Defaults.MaxChanged <= 0 || c.Defaults.MaxChanged > 1 {
+		c.Defaults.MaxChanged = 0.01
 	}
 	if c.Defaults.Timeout <= 0 {
 		c.Defaults.Timeout = 600
@@ -211,6 +217,10 @@ func (c *Config) Jobs() []Job {
 		j.Threshold = c.Defaults.Threshold
 		if s.Threshold != nil {
 			j.Threshold = *s.Threshold
+		}
+		j.MaxChanged = c.Defaults.MaxChanged
+		if s.MaxChanged != nil {
+			j.MaxChanged = *s.MaxChanged
 		}
 		timeout := c.Defaults.Timeout
 		if s.Timeout > 0 {

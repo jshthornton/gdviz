@@ -141,6 +141,15 @@ func cmdCompare(argv []string) error {
 	var shots []ShotResult
 	if r, err := loadReport(filepath.Join(c.output, "report.json")); err == nil && len(r.Shots) > 0 {
 		shots = r.Shots
+		// normalize settings written by older runs
+		for i := range shots {
+			if shots[i].Threshold <= 0 {
+				shots[i].Threshold = c.cfg.Defaults.Threshold
+			}
+			if shots[i].MaxChanged <= 0 {
+				shots[i].MaxChanged = c.cfg.Defaults.MaxChanged
+			}
+		}
 	} else {
 		entries, err := os.ReadDir(filepath.Join(c.output, "current"))
 		if err != nil {
@@ -151,8 +160,9 @@ func cmdCompare(argv []string) error {
 				continue
 			}
 			shots = append(shots, ShotResult{
-				Key:       strings.TrimSuffix(e.Name(), ".png"),
-				Threshold: c.cfg.Defaults.Threshold,
+				Key:        strings.TrimSuffix(e.Name(), ".png"),
+				Threshold:  c.cfg.Defaults.Threshold,
+				MaxChanged: c.cfg.Defaults.MaxChanged,
 			})
 		}
 	}

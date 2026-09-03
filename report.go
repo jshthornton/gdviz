@@ -17,10 +17,13 @@ type ShotResult struct {
 	Scene          string  `json:"scene"`
 	Status         string  `json:"status"`
 	Threshold      float64 `json:"threshold"`
+	MaxChanged     float64 `json:"max_changed"`
 	Width          int     `json:"width"`
 	Height         int     `json:"height"`
 	MismatchPixels int     `json:"mismatch_pixels"`
 	MismatchRatio  float64 `json:"mismatch_ratio"`
+	ChangedPixels  int     `json:"changed_pixels"`
+	ChangedRatio   float64 `json:"changed_ratio"`
 	Recording      bool    `json:"recording"`
 	Frames         int     `json:"frames"`
 	DurationMs     int64   `json:"duration_ms"`
@@ -91,7 +94,7 @@ func compareShot(c *runCtx, r *ShotResult) {
 		return
 	}
 	r.BaselineExists = true
-	res, diffImg, err := ComparePNG(base, cur, r.Threshold)
+	res, diffImg, err := ComparePNG(base, cur, r.Threshold, r.MaxChanged)
 	if err != nil {
 		r.Status = "error"
 		r.Error = err.Error()
@@ -104,7 +107,9 @@ func compareShot(c *runCtx, r *ShotResult) {
 	}
 	r.MismatchPixels = res.DiffPixels
 	r.MismatchRatio = res.Ratio
-	if res.DiffPixels == 0 {
+	r.ChangedPixels = res.ChangedPixels
+	r.ChangedRatio = res.ChangedRatio
+	if res.DiffPixels == 0 && res.ChangedRatio <= r.MaxChanged {
 		r.Status = "pass"
 		return
 	}
@@ -127,7 +132,7 @@ func printSummary(r *Report) {
 	for _, s := range r.Shots {
 		switch s.Status {
 		case "fail":
-			fmt.Printf("  FAIL  %-40s %.3f%% pixels differ (threshold %.0f%%)\n", s.Key, s.MismatchRatio*100, s.Threshold*100)
+			fmt.Printf("  FAIL  %-40s %.1f%% of pixels changed (budget %.1f%%) · %d px beyond threshold\n", s.Key, s.ChangedRatio*100, s.MaxChanged*100, s.MismatchPixels)
 		case "new":
 			fmt.Printf("  NEW   %-40s no baseline yet — `gdviz approve %s` adopts it\n", s.Key, s.Key)
 		case "size":

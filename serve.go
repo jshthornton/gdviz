@@ -89,6 +89,7 @@ type shotDetail struct {
 	Status         string
 	Dims           string
 	ThresholdPct   string
+	MaxChangedPct  string
 	Recording      bool
 	Frames         int
 	HasBaseline    bool
@@ -97,6 +98,8 @@ type shotDetail struct {
 	CanApprove     bool
 	MismatchPct    string
 	MismatchPixels int
+	ChangedPct     string
+	ChangedPixels  int
 	Error          string
 	Log            string
 }
@@ -163,18 +166,22 @@ func buildList(r *Report) listData {
 			jv = &jobs[len(jobs)-1]
 			byID[shot.Job] = jv
 		}
-		row := shotRow{Key: shot.Key, KeyURL: keyURL(shot.Key), Status: shot.Status}
-		switch shot.Status {
-		case "fail":
-			row.Badge = pct1(shot.MismatchRatio) + "%"
-		case "new":
-			row.Badge = "new"
-		case "size", "error", "missing":
-			row.Badge = shot.Status
-		}
+		row := shotRow{Key: shot.Key, KeyURL: keyURL(shot.Key), Status: shot.Status, Badge: failBadge(shot)}
 		jv.Shots = append(jv.Shots, row)
 	}
 	return listData{Jobs: jobs}
+}
+
+func failBadge(shot ShotResult) string {
+	switch shot.Status {
+	case "fail":
+		return pct1(shot.ChangedRatio) + "%"
+	case "new":
+		return "new"
+	case "size", "error", "missing":
+		return shot.Status
+	}
+	return ""
 }
 
 func pct1(v float64) string { return fmt.Sprintf("%.1f", v*100) }
@@ -191,10 +198,13 @@ func buildDetail(s *server, r *Report, key string) *shotDetail {
 			Scene:          shot.Scene,
 			Status:         shot.Status,
 			ThresholdPct:   pct1(shot.Threshold) + "%",
+			MaxChangedPct:  pct1(shot.MaxChanged) + "%",
 			Recording:      shot.Recording,
 			Frames:         shot.Frames,
 			MismatchPct:    pct1(shot.MismatchRatio),
 			MismatchPixels: shot.MismatchPixels,
+			ChangedPct:     pct1(shot.ChangedRatio),
+			ChangedPixels:  shot.ChangedPixels,
 			Error:          shot.Error,
 			Log:            shot.Log,
 		}
@@ -300,14 +310,7 @@ func shotRowFrom(r *Report, key string) shotRow {
 	for _, shot := range r.Shots {
 		if shot.Key == key {
 			row := shotRow{Key: shot.Key, KeyURL: keyURL(shot.Key), Status: shot.Status}
-			switch shot.Status {
-			case "fail":
-				row.Badge = pct1(shot.MismatchRatio) + "%"
-			case "new":
-				row.Badge = "new"
-			case "size", "error", "missing":
-				row.Badge = shot.Status
-			}
+			row.Badge = failBadge(shot)
 			return row
 		}
 	}

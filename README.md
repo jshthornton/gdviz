@@ -134,10 +134,11 @@ method = ""                           # optional --rendering-method passthrough
 [defaults]
 record = true                         # record scenarios by default
 threshold = 0.1                       # pixelmatch threshold 0..1 (smaller = more sensitive)
-timeout = 600                         # per-job seconds before godot is killed
-parallel = 1                          # jobs run concurrently up to this many
+max_changed = 0.01                    # max fraction of pixels that may differ at all
 args = []                             # extra args appended after "--" for every job
 env = []                              # KEY=VALUE env for every job
+timeout = 600                         # per-job seconds before godot is killed
+parallel = 1                          # jobs run concurrently up to this many
 
 [[shot]]
 name = "my-shot"                      # optional; omit for multi mode (stem-named shots)
@@ -148,6 +149,7 @@ args = ["--level=2"]                  # extra args for this job only
 env = ["SPOOKY_SEED=1234"]
 record = true
 threshold = 0.05
+max_changed = 0.02
 quit_after = 240                      # generic mode: quit after N frames
 serial = true                         # heavy job: run exclusively (nothing else alongside)
 timeout = 900
@@ -155,10 +157,19 @@ timeout = 900
 
 ## How the diff works
 
-gdviz ports the [pixelmatch](https://github.com/mapbox/pixelmatch) algorithm
-(gamma-corrected RGB → YIQ perceptual distance, per-pixel threshold, and
-anti-aliased-pixel detection so edge softening does not count as a regression).
-`threshold` follows pixelmatch semantics: 0.1 default, smaller = stricter.
+gdviz ports the current [pixelmatch](https://github.com/mapbox/pixelmatch)
+algorithm: colors are compared as OKLab HyAB distance with a 0..1 black-to-
+white scale, and anti-aliased pixels are detected and excluded so edge
+softening does not count as a regression. `threshold` (default 0.1) is the
+max per-pixel distance as a fraction of black↔white; smaller is stricter.
+
+On top of the per-pixel threshold gdviz adds a **changed-area budget**:
+`max_changed` (default 0.01) caps the fraction of pixels that may differ at
+all (above a small dither-noise floor). This is what catches *global* drift —
+a fog-density or exposure shift changes every pixel slightly, which a
+per-pixel threshold rightly tolerates but a visual regression suite must
+not. A shot fails if EITHER budget is exceeded.
+
 A size change (different resolution) is its own `size` failure — you almost
 always want to notice that explicitly.
 
@@ -181,7 +192,11 @@ full-game scenarios that want the whole GPU.
 
 ## Determinism tips
 
-- Fix your seeds. Randomized scenes will (correctly) fail every run.
+- Fix your seeds. Randomized scenes will (correctly) fail every run. For
+  scenes that host a match, pass the engine's seed override as a shot arg
+  (e.g. `args = ["--seed=1234"]` in Godot projects that support it) and pin
+  any time/phase-driven ambience (flickering lights, drifting particles)
+  before the capture.
 - gdviz launches Godot with a small unfocused window (`no_focus`, fixed size,
   dummy audio) via a project-settings overlay, so capture runs don't fight your
   desktop or settings autoloads.

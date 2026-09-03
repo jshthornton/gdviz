@@ -2,7 +2,7 @@
 <div class="detail-head">
   <div class="detail-title">
     <div class="detail-key">{{.Key}}</div>
-    <div class="detail-sub dim">{{.Scene}}{{if .Dims}} · {{.Dims}}{{end}} · threshold {{.ThresholdPct}}{{if .Recording}} · {{.Frames}} recorded frames{{end}}</div>
+    <div class="detail-sub dim">{{.Scene}}{{if .Dims}} · {{.Dims}}{{end}} · threshold {{.ThresholdPct}} · changed-budget {{.MaxChangedPct}}{{if .Recording}} · {{.Frames}} recorded frames{{end}}</div>
   </div>
   <div class="detail-actions">
     {{if .Recording}}<button class="btn" hx-get="/frag/frames/{{.Job}}" hx-target="#modal-content" hx-swap="innerHTML" data-open-modal>▶ recording</button>{{end}}
@@ -12,7 +12,7 @@
 </div>
 
 <div class="status-line st-{{.Status}}">
-  {{if eq .Status "pass"}}✓ matches baseline{{else if eq .Status "fail"}}✗ <b>{{.MismatchPct}}%</b> of pixels differ ({{.MismatchPixels}} px) — red: baseline was darker · green: current is darker · yellow: anti-aliasing (ignored){{else if eq .Status "new"}}+ new shot — no baseline yet; approve to adopt this image as the reference{{else if or (eq .Status "size") (eq .Status "error")}}✗ {{.Error}}{{else}}{{.Status}}{{end}}
+  {{if eq .Status "pass"}}✓ matches baseline{{else if eq .Status "fail"}}✗ <b>{{.ChangedPct}}%</b> of pixels changed (budget {{.MaxChangedPct}}%) · {{.MismatchPixels}} px beyond the perceptual threshold — red: baseline was darker · green: current is darker · yellow: anti-aliasing (ignored){{else if eq .Status "new"}}+ new shot — no baseline yet; approve to adopt this image as the reference{{else if or (eq .Status "size") (eq .Status "error")}}✗ {{.Error}}{{else}}{{.Status}}{{end}}
 </div>
 
 <div id="modes" class="modes">

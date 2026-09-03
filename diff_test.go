@@ -33,7 +33,7 @@ func TestCompareIdentical(t *testing.T) {
 	dir := t.TempDir()
 	a := makePNG(t, dir, "a.png", 64, 64, color.RGBA{R: 128, G: 128, B: 128, A: 255}, nil)
 	b := makePNG(t, dir, "b.png", 64, 64, color.RGBA{R: 128, G: 128, B: 128, A: 255}, nil)
-	res, diff, err := ComparePNG(a, b, 0.1)
+	res, diff, err := ComparePNG(a, b, 0.1, 0.01)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestCompareSubtleShiftPasses(t *testing.T) {
 	dir := t.TempDir()
 	a := makePNG(t, dir, "a.png", 64, 64, color.RGBA{R: 128, G: 128, B: 128, A: 255}, nil)
 	b := makePNG(t, dir, "b.png", 64, 64, color.RGBA{R: 130, G: 130, B: 130, A: 255}, nil)
-	res, _, err := ComparePNG(a, b, 0.1)
+	res, _, err := ComparePNG(a, b, 0.1, 0.01)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestCompareStrongDeltaFails(t *testing.T) {
 		return color.RGBA{}, false
 	})
 	b := makePNG(t, dir, "b.png", 64, 64, color.RGBA{B: 255, A: 255}, nil)
-	res, diff, err := ComparePNG(a, b, 0.1)
+	res, diff, err := ComparePNG(a, b, 0.1, 0.01)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestCompareSizeMismatch(t *testing.T) {
 	dir := t.TempDir()
 	a := makePNG(t, dir, "a.png", 64, 64, color.RGBA{A: 255}, nil)
 	b := makePNG(t, dir, "b.png", 32, 64, color.RGBA{A: 255}, nil)
-	res, _, err := ComparePNG(a, b, 0.1)
+	res, _, err := ComparePNG(a, b, 0.1, 0.01)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestAntiAliasedEdgeIgnored(t *testing.T) {
 		v := uint8(minI(255, x*8+2))
 		return color.RGBA{R: v, G: v, B: v, A: 255}, true
 	})
-	res, _, err := ComparePNG(a, b, 0.1)
+	res, _, err := ComparePNG(a, b, 0.1, 0.01)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,5 +173,53 @@ func TestDecimate(t *testing.T) {
 	}
 	if count != 4 {
 		t.Fatalf("dir has %d files after decimate, want 4", count)
+	}
+}
+
+func TestCompareGlobalDriftFailsChangedBudget(t *testing.T) {
+	// the fog-bug case: a uniform brightness shift changes every pixel. A
+	// small drift (128 -> 136, ~3.5% HyAB) stays under the per-pixel
+	// threshold but must trip the changed-area budget.
+	dir := t.TempDir()
+	a := makePNG(t, dir, "a.png", 64, 64, color.RGBA{R: 128, G: 128, B: 128, A: 255}, nil)
+	b := makePNG(t, dir, "b.png", 64, 64, color.RGBA{R: 136, G: 136, B: 136, A: 255}, nil)
+	res, _, err := ComparePNG(a, b, 0.1, 0.01)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.DiffPixels != 0 {
+		t.Fatalf("global 128->136 drift should stay under the perceptual threshold, got %d diff pixels", res.DiffPixels)
+	}
+	if res.ChangedRatio < 0.99 {
+		t.Fatalf("global drift should flag ~100%% of pixels as changed, got %.1f%%", res.ChangedRatio*100)
+	}
+}
+
+func TestCompareBigDriftFailsPerPixelToo(t *testing.T) {
+	// a 128 -> 160 flip is ~11.7% of the black-white HyAB distance, so the
+	// per-pixel threshold (0.1) fails every pixel on its own
+	dir := t.TempDir()
+	a := makePNG(t, dir, "a.png", 64, 64, color.RGBA{R: 128, G: 128, B: 128, A: 255}, nil)
+	b := makePNG(t, dir, "b.png", 64, 64, color.RGBA{R: 160, G: 160, B: 160, A: 255}, nil)
+	res, _, err := ComparePNG(a, b, 0.1, 0.01)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.DiffPixels != res.TotalPixels {
+		t.Fatalf("128->160 flip should fail per-pixel everywhere, got %d/%d", res.DiffPixels, res.TotalPixels)
+	}
+}
+
+func TestCompareNoiseFloorIgnoresDither(t *testing.T) {
+	// +-1..2 sRGB jitter (GPU dither) counts as no change
+	dir := t.TempDir()
+	a := makePNG(t, dir, "a.png", 64, 64, color.RGBA{R: 128, G: 128, B: 128, A: 255}, nil)
+	b := makePNG(t, dir, "b.png", 64, 64, color.RGBA{R: 130, G: 130, B: 130, A: 255}, nil)
+	res, _, err := ComparePNG(a, b, 0.1, 0.01)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.ChangedPixels != 0 {
+		t.Fatalf("+2 shift should be inside the noise floor, got %d changed pixels", res.ChangedPixels)
 	}
 }
