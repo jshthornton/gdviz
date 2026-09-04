@@ -134,8 +134,8 @@ func (c *Config) validate() error {
 		if s.Scene == "" {
 			return fmt.Errorf("shot %d: missing scene", i+1)
 		}
-		if len(s.Paths) == 0 {
-			return fmt.Errorf("shot %q: at least one paths entry is required", s.Name)
+		if len(s.Paths) == 0 && s.Name == "" {
+			return fmt.Errorf("shot %d: multi mode (no name) requires paths", i+1)
 		}
 		if s.Name == "" {
 			continue

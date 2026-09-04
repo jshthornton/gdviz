@@ -16,14 +16,14 @@
 </div>
 
 <div id="modes" class="modes">
-  {{if .HasBaseline}}<button data-mode="overlay" class="active">overlay</button>
-  <button data-mode="side">side by side</button>
-  <button data-mode="baseline">baseline</button>{{end}}
-  <button data-mode="current" {{if not .HasBaseline}}class="active"{{end}}>current</button>
-  {{if .HasDiff}}<button data-mode="diff">diff</button>{{end}}
+  {{if .HasBaseline}}<button data-mode="overlay" {{if eq .Mode "overlay"}}class="active"{{end}}>overlay</button>
+  <button data-mode="side" {{if eq .Mode "side"}}class="active"{{end}}>side by side</button>
+  <button data-mode="baseline" {{if eq .Mode "baseline"}}class="active"{{end}}>baseline</button>{{end}}
+  <button data-mode="current" {{if eq .Mode "current"}}class="active"{{end}}>current</button>
+  {{if .HasDiff}}<button data-mode="diff" {{if eq .Mode "diff"}}class="active"{{end}}>diff</button>{{end}}
 </div>
 
-<div id="stage" data-mode="{{if .HasBaseline}}overlay{{else}}current{{end}}">
+<div id="stage" data-mode="{{.Mode}}">
   {{if .HasBaseline}}
   <div class="pane" data-pane="overlay">
     <div class="compare" id="compare" style="--pos:50%">
@@ -34,19 +34,19 @@
     </div>
   </div>
   <div class="pane" data-pane="side">
-    <figure><figcaption>baseline</figcaption><img src="/img/baseline/{{.Key}}.png" loading="lazy" alt="baseline"></figure>
-    <figure><figcaption>current</figcaption><img src="/img/current/{{.Key}}.png" loading="lazy" alt="current"></figure>
+    <figure><figcaption>baseline</figcaption><img src="/img/baseline/{{.Key}}.png" alt="baseline"></figure>
+    <figure><figcaption>current</figcaption><img src="/img/current/{{.Key}}.png" alt="current"></figure>
   </div>
   <div class="pane" data-pane="baseline">
-    <figure><figcaption>baseline</figcaption><img src="/img/baseline/{{.Key}}.png" loading="lazy" alt="baseline"></figure>
+    <figure><figcaption>baseline</figcaption><img src="/img/baseline/{{.Key}}.png" alt="baseline"></figure>
   </div>
   {{end}}
   <div class="pane" data-pane="current">
-    <figure><figcaption>current{{if not .HasBaseline}} — no baseline yet{{end}}</figcaption><img src="/img/current/{{.Key}}.png" loading="lazy" alt="current"></figure>
+    <figure><figcaption>current{{if not .HasBaseline}} — no baseline yet{{end}}</figcaption><img src="/img/current/{{.Key}}.png" alt="current"></figure>
   </div>
   {{if .HasDiff}}
   <div class="pane" data-pane="diff">
-    <figure><figcaption>diff heatmap</figcaption><img src="/img/diff/{{.Key}}.png" loading="lazy" alt="diff"></figure>
+    <figure><figcaption>diff heatmap</figcaption><img src="/img/diff/{{.Key}}.png" alt="diff"></figure>
   </div>
   {{end}}
 </div>

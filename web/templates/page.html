@@ -17,8 +17,8 @@
     {{if .Detail}}{{template "shot" .Detail}}{{else}}<div class="empty">Select a shot on the left — or run <code>gdviz test</code> first.</div>{{end}}
   </main>
 </div>
-<div id="modal" class="modal-backdrop" hidden>
-  <div class="modal" id="modal-content"></div>
+<div id="modal" class="modal-backdrop" {{if not .Frames}}hidden{{end}}>
+  <div class="modal" id="modal-content">{{if .Frames}}{{template "frames" .Frames}}{{end}}</div>
 </div>
 </body>
 </html>

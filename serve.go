@@ -87,6 +87,7 @@ type shotDetail struct {
 	Job            string
 	Scene          string
 	Status         string
+	Mode           string
 	Dims           string
 	ThresholdPct   string
 	MaxChangedPct  string
@@ -108,6 +109,14 @@ type pageData struct {
 	Header headerView
 	List   listData
 	Detail *shotDetail
+	Frames *framesView
+}
+
+// framesView backs the recording player (modal content).
+type framesView struct {
+	Job   string
+	Count int
+	Max   int
 }
 
 func keyURL(key string) string {
@@ -198,7 +207,7 @@ func buildDetail(s *server, r *Report, key string) *shotDetail {
 			Scene:          shot.Scene,
 			Status:         shot.Status,
 			ThresholdPct:   pct1(shot.Threshold) + "%",
-			MaxChangedPct:  pct1(shot.MaxChanged) + "%",
+			MaxChangedPct:  pct1(shot.MaxChanged),
 			Recording:      shot.Recording,
 			Frames:         shot.Frames,
 			MismatchPct:    pct1(shot.MismatchRatio),
@@ -239,6 +248,19 @@ func (s *server) handlePage(w http.ResponseWriter, r *http.Request, detailKey st
 	data := pageData{Header: buildHeader(s, rep), List: buildList(rep)}
 	if detailKey != "" {
 		data.Detail = buildDetail(s, rep, detailKey)
+		if data.Detail != nil {
+			data.Detail.Mode = r.URL.Query().Get("mode")
+			if data.Detail.Mode == "" {
+				if data.Detail.HasBaseline {
+					data.Detail.Mode = "overlay"
+				} else {
+					data.Detail.Mode = "current"
+				}
+			}
+		}
+	}
+	if r.URL.Query().Get("frames") != "" && data.Detail != nil {
+		data.Frames = buildFramesView(s, data.Detail.Job)
 	}
 	body := render(w, "page", data)
 	if body == nil {
@@ -246,6 +268,14 @@ func (s *server) handlePage(w http.ResponseWriter, r *http.Request, detailKey st
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write(body)
+}
+
+func buildFramesView(s *server, job string) *framesView {
+	frames := listFrames(filepath.Join(s.c.output, "frames", job))
+	if len(frames) == 0 {
+		return nil
+	}
+	return &framesView{Job: job, Count: len(frames), Max: len(frames) - 1}
 }
 
 func (s *server) handleListRefresh(w http.ResponseWriter, r *http.Request) {

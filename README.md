@@ -13,8 +13,47 @@ embedded (htmx 4).
 
 ```
 gdviz test     →  capture every shot, diff vs baselines, non-zero exit on regressions
-gdviz review   →  http://127.0.0.1:8420  — diffs, overlay slider, recordings, approvals
+gdviz review    →  http://127.0.0.1:8420  — diffs, overlay slider, recordings, approvals
 gdviz approve  →  promote a changed image to the new baseline
+```
+
+## What it looks like
+
+The shot list — status chips up top, failing shots with change badges:
+
+![shot list](docs/img/ui-list.png)
+
+**Drift** — a global brightness/fog shift moves every pixel a little. The
+per-pixel threshold rightly tolerates small shifts, so the **changed-area
+budget** fails the shot instead, and the overlay slider wipes
+baseline↔current:
+
+![drift review](docs/img/ui-drift.png)
+
+**Mismatch** — a structural change (a box removed, an object moved) lights up
+the diff heatmap: red where the baseline was darker, green where the current
+is darker, yellow for ignored anti-aliasing:
+
+![diff heatmap](docs/img/ui-diff.png)
+
+**Recordings** — shots can record the whole scenario; a frame-scrubber player
+opens right in the UI (play/pause, arrow keys, fps selector):
+
+![recording player](docs/img/ui-recording.png)
+
+## A runnable example
+
+[`examples/minimal`](examples/minimal) is a tiny Godot project ( coloured
+primitives, no gameplay) with four shots: `shapes` and `spinner` pass;
+`drift` (everything brightened) and `mismatch` (a box hidden, a ball moved)
+ship failing **on purpose** so you can explore the failure UI immediately.
+
+```bash
+git clone https://github.com/jshthornton/gdviz && cd gdviz
+mise run build
+bin/gdviz test --project examples/minimal      # PASS 2 · FAIL 2 (by design)
+bin/gdviz review --project examples/minimal    # open the UI, click around
+bin/gdviz approve --project examples/minimal drift mismatch   # go all-green
 ```
 
 ## Why
@@ -144,7 +183,8 @@ parallel = 1                          # jobs run concurrently up to this many
 name = "my-shot"                      # optional; omit for multi mode (stem-named shots)
 scene = "res://scenes/whatever.tscn"  # required
 size = "1280x720"                     # or width/height ints; falls back to [render]
-paths = ["tmp/shots/*.png"]           # required — globs collected after the run
+paths = ["tmp/shots/*.png"]           # optional — omit for generic mode (last recorded
+                                      # frame becomes the shot; needs quit_after)
 args = ["--level=2"]                  # extra args for this job only
 env = ["SPOOKY_SEED=1234"]
 record = true

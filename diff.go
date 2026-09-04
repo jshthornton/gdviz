@@ -91,9 +91,8 @@ func savePNG(path string, img image.Image) error {
 
 // ComparePNG diffs two PNG files and produces a diff visualization.
 // threshold follows pixelmatch semantics (0..1, default 0.1; smaller is more
-// sensitive); maxChanged is the fraction of pixels (0..1] allowed to differ
-// at all above the noise floor.
-func ComparePNG(pathA, pathB string, threshold, maxChanged float64) (DiffResult, *image.RGBA, error) {
+// sensitive). The caller applies the changed-area budget to res.ChangedRatio.
+func ComparePNG(pathA, pathB string, threshold float64) (DiffResult, *image.RGBA, error) {
 	a, err := loadRGBA(pathA)
 	if err != nil {
 		return DiffResult{}, nil, fmt.Errorf("baseline: %w", err)
@@ -120,7 +119,6 @@ func ComparePNG(pathA, pathB string, threshold, maxChanged float64) (DiffResult,
 	res.ChangedPixels = changedCount
 	res.Ratio = float64(diffCount) / float64(res.TotalPixels)
 	res.ChangedRatio = float64(changedCount) / float64(res.TotalPixels)
-	_ = maxChanged
 	return res, diffImg, nil
 }
 

@@ -16,6 +16,9 @@ Usage:
   gdviz approve  [--project DIR] [--all|KEY...]  promote current screenshots to baselines
   gdviz review   [--project DIR] [--port N]  open the review UI (diffs, overlays, recordings, approvals)
   gdviz shots    [--project DIR]             list configured shots
+  gdviz run      [--project DIR] SCENE [-- USER_ARGS...]
+                                             launch one scene adhoc (windowed,
+                                             unfocused; no diffing)
   gdviz version
 
 Filters:  --only NAME   run jobs whose name/scene contains NAME (repeatable)
@@ -58,6 +61,8 @@ func run(args []string) int {
 		err = cmdReview(args[2:])
 	case "shots":
 		err = cmdShots(args[2:])
+	case "run":
+		err = cmdRun(args[2:])
 	case "version", "--version", "-v":
 		fmt.Println("gdviz", version)
 	case "help", "--help", "-h":

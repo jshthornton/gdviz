@@ -156,13 +156,22 @@ func runJob(c *runCtx, job Job, opts runOpts, keys *keySet) []ShotResult {
 	} else if opts.recordMode == 2 {
 		record = false
 	}
-
-	if previous, err := globProject(c.project, job.Paths); err == nil {
-		for _, f := range previous {
-			os.Remove(f)
-		}
+	framesKept := record
+	generic := len(job.Paths) == 0
+	if generic {
+		// generic mode: the screenshot IS the final recorded frame, so the
+		// movie writer must run even when the recording is not kept
+		record = true
 	}
-	ensureShotDirs(c.project, job.Paths)
+
+	if len(job.Paths) > 0 {
+		if previous, err := globProject(c.project, job.Paths); err == nil {
+			for _, f := range previous {
+				os.Remove(f)
+			}
+		}
+		ensureShotDirs(c.project, job.Paths)
+	}
 	framesDir := filepath.Join(c.output, "frames", job.ID)
 	os.RemoveAll(framesDir)
 	if record {
@@ -185,17 +194,32 @@ func runJob(c *runCtx, job Job, opts runOpts, keys *keySet) []ShotResult {
 	if record {
 		frames = decimateFrames(framesDir, c.cfg.Render.MaxFrames)
 	}
+	if os.Getenv("GDVIZ_DEBUG") != "" {
+		fmt.Printf("[gdviz-debug] job=%s record=%v framesKept=%v generic=%v frames=%d dirFiles=%d\n",
+			job.ID, record, framesKept, generic, frames, len(listFrames(framesDir)))
+	}
 
-	files, gerr := globProject(c.project, job.Paths)
+	var files []string
+	var gerr error
+	if generic {
+		if list := listFrames(framesDir); len(list) > 0 {
+			files = list[len(list)-1:]
+		}
+	} else {
+		files, gerr = globProject(c.project, job.Paths)
+	}
 	if len(files) == 0 {
 		msg := fmt.Sprintf("no files matched [%s]", strings.Join(job.Paths, ", "))
+		if generic {
+			msg = "generic shot produced no recorded frames (did the scene render?)"
+		}
 		switch {
 		case gerr != nil:
 			msg = gerr.Error()
 		case runErr != nil:
 			msg = fmt.Sprintf("godot exited with error: %v", runErr)
 		}
-		return jobErrorResult(job, msg, record, frames, duration.Milliseconds())
+		return jobErrorResult(job, msg, record && framesKept, frames, duration.Milliseconds())
 	}
 	if !job.Multi && len(files) > 1 {
 		return jobErrorResult(job, fmt.Sprintf("patterns matched %d files; give shot a unique paths glob or drop name= for multi mode", len(files)), record, frames, duration.Milliseconds())
@@ -236,7 +260,7 @@ func runJob(c *runCtx, job Job, opts runOpts, keys *keySet) []ShotResult {
 			MaxChanged: job.MaxChanged,
 			Width:      dims.X,
 			Height:     dims.Y,
-			Recording:  record,
+			Recording:  framesKept,
 			Frames:     frames,
 			DurationMs: duration.Milliseconds(),
 			Log:        tail,
@@ -245,6 +269,11 @@ func runJob(c *runCtx, job Job, opts runOpts, keys *keySet) []ShotResult {
 			compareShot(c, &r)
 		}
 		results = append(results, r)
+	}
+	if !framesKept {
+		// recordings are opt-in; generic shots only needed the last frame
+		os.RemoveAll(framesDir)
+		frames = 0
 	}
 	return results
 }
@@ -301,6 +330,9 @@ func jobEnv(c *runCtx, job Job) []string {
 }
 
 func runGodot(bin string, args []string, env []string, timeout time.Duration, logPath string) (string, error) {
+	if os.Getenv("GDVIZ_DEBUG") != "" {
+		fmt.Println("[gdviz-debug] " + bin + " " + strings.Join(args, " "))
+	}
 	f, err := os.Create(logPath)
 	if err != nil {
 		return "", err

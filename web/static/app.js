@@ -5,6 +5,7 @@
 
   const modal = () => document.getElementById('modal');
 
+
   window.closeModal = function () {
     const m = modal();
     if (!m) return;

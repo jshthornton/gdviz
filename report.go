@@ -94,7 +94,7 @@ func compareShot(c *runCtx, r *ShotResult) {
 		return
 	}
 	r.BaselineExists = true
-	res, diffImg, err := ComparePNG(base, cur, r.Threshold, r.MaxChanged)
+	res, diffImg, err := ComparePNG(base, cur, r.Threshold)
 	if err != nil {
 		r.Status = "error"
 		r.Error = err.Error()
