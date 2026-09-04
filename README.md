@@ -148,6 +148,7 @@ gdviz review [--port 8420]
 | `gdviz approve [--all\|KEY...]` | promote current captures to baselines |
 | `gdviz review` | serve the review UI |
 | `gdviz shots` | list configured jobs and baseline count |
+| `gdviz run` | launch one scene adhoc in the tuned window (no baselines, no diffing — handy for authoring capture scenes) |
 
 Useful flags: `--project DIR`, `--godot PATH` (else `$GDVIZ_GODOT`, config, `PATH`),
 `--only SUBSTR` / `--skip SUBSTR` (filter jobs), `--no-record` / `--record`,
